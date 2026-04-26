@@ -6,13 +6,16 @@ class AlgorithmVisualizer {
         this.currentLanguage = 'java';
         this.array = [];
         this.isPlaying = false;
-        this.animationSpeed = 300;
+        this.animationSpeed = 350;
         this.currentStep = 0;
         this.totalSteps = 0;
         this.comparisons = 0;
         this.swaps = 0;
         this.searchTarget = null;
         this.animationId = null;
+        this.isStepMode = false;
+        this.stepResolver = null;
+        this.sortedIndices = new Set();
         
         this.initializeElements();
         this.initializeEventListeners();
@@ -23,7 +26,6 @@ class AlgorithmVisualizer {
     initializeElements() {
         // Main UI elements
         this.categoryBtns = document.querySelectorAll('.category-btn');
-        this.algorithmBtns = document.querySelectorAll('.algorithm-btn');
         this.languageSelect = document.querySelector('.language-select');
         this.arraySizeSlider = document.querySelector('.array-size-slider');
         this.arraySizeValue = document.querySelector('.array-size-value');
@@ -48,6 +50,9 @@ class AlgorithmVisualizer {
         this.currentStepSpan = document.querySelector('.current-step');
         this.comparisonsSpan = document.querySelector('.comparisons');
         this.swapsSpan = document.querySelector('.swaps');
+        this.statusMsgSpan = document.querySelector('.status-msg');
+        this.statusMsgContainer = document.querySelector('.status-msg-container');
+        this.statusMsgClose = document.querySelector('.status-msg-close');
         
         // Icons
         this.playIcon = document.querySelector('.play-icon');
@@ -117,6 +122,13 @@ class AlgorithmVisualizer {
             this.animationSpeed = 600 - (e.target.value * 50);
             this.speedValue.textContent = e.target.value + 'x';
         });
+
+        // Status message close
+        if (this.statusMsgClose) {
+            this.statusMsgClose.addEventListener('click', () => {
+                this.statusMsgContainer.classList.remove('active');
+            });
+        }
     }
 
     selectCategory(category) {
@@ -157,7 +169,7 @@ class AlgorithmVisualizer {
         this.currentAlgorithm = algorithm;
         
         // Update algorithm buttons
-        this.algorithmBtns.forEach(btn => {
+        document.querySelectorAll('.algorithm-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.algorithm === algorithm);
         });
         
@@ -173,8 +185,8 @@ class AlgorithmVisualizer {
             this.array.push(Math.floor(Math.random() * 200) + 10);
         }
         
+        this.sortedIndices.clear();
         this.resetVisualization();
-        this.renderArray();
     }
 
     renderArray() {
@@ -186,12 +198,16 @@ class AlgorithmVisualizer {
         
         const maxValue = Math.max(...this.array);
         const containerWidth = this.arrayVisualization.clientWidth || 800;
+        const containerHeight = this.arrayVisualization.clientHeight || 250;
         const elementWidth = Math.max(15, Math.min(50, (containerWidth - (this.array.length * 2)) / this.array.length));
         
         this.array.forEach((value, index) => {
             const element = document.createElement('div');
             element.className = 'array-element';
-            element.style.height = `${(value / maxValue) * 220}px`;
+            if (this.sortedIndices.has(index)) {
+                element.classList.add('sorted');
+            }
+            element.style.height = `${(value / maxValue) * (containerHeight * 0.88)}px`;
             element.style.width = `${elementWidth}px`;
             element.textContent = value;
             element.dataset.index = index;
@@ -203,7 +219,14 @@ class AlgorithmVisualizer {
         if (this.isPlaying) {
             this.pauseAnimation();
         } else {
-            await this.startAnimation();
+            this.isStepMode = false;
+            if (this.stepResolver) {
+                const resolve = this.stepResolver;
+                this.stepResolver = null;
+                resolve();
+            } else {
+                await this.startAnimation();
+            }
         }
     }
 
@@ -229,6 +252,7 @@ class AlgorithmVisualizer {
 
     pauseAnimation() {
         this.isPlaying = false;
+        this.isStepMode = false;
         this.playIcon.style.display = 'inline';
         this.pauseIcon.style.display = 'none';
         
@@ -236,6 +260,8 @@ class AlgorithmVisualizer {
             clearTimeout(this.animationId);
             this.animationId = null;
         }
+
+        this.stepResolver = null;
     }
 
     resetVisualization() {
@@ -243,12 +269,20 @@ class AlgorithmVisualizer {
         this.currentStep = 0;
         this.comparisons = 0;
         this.swaps = 0;
+        this.sortedIndices.clear();
         this.renderArray();
-        this.updateStatus();
+        this.updateStatus(false);
     }
 
     stepForward() {
-        console.log('Step forward - functionality to be implemented');
+        if (!this.isPlaying) {
+            this.isStepMode = true;
+            this.startAnimation();
+        } else if (this.isStepMode && this.stepResolver) {
+            const resolve = this.stepResolver;
+            this.stepResolver = null;
+            resolve();
+        }
     }
 
     async runSortingAnimation() {
@@ -270,6 +304,18 @@ class AlgorithmVisualizer {
             case 'quick_sort':
                 await this.quickSortAnimation(sortedArray, 0, sortedArray.length - 1);
                 break;
+            case 'heap_sort':
+                await this.heapSortAnimation(sortedArray);
+                break;
+            case 'counting_sort':
+                await this.countingSortAnimation(sortedArray);
+                break;
+            case 'radix_sort':
+                await this.radixSortAnimation(sortedArray);
+                break;
+            case 'bucket_sort':
+                await this.bucketSortAnimation(sortedArray);
+                break;
             default:
                 console.log(`${this.currentAlgorithm} animation not fully implemented yet`);
                 // Show a simple demonstration
@@ -279,7 +325,7 @@ class AlgorithmVisualizer {
 
     async runSearchingAnimation() {
         if (this.searchTarget === null || isNaN(this.searchTarget)) {
-            alert('Please enter a valid number to search for');
+            this.setStatusMsg('Please enter a valid number to search for');
             return;
         }
         
@@ -289,6 +335,15 @@ class AlgorithmVisualizer {
                 break;
             case 'binary_search':
                 await this.binarySearchAnimation();
+                break;
+            case 'jump_search':
+                await this.jumpSearchAnimation();
+                break;
+            case 'exponential_search':
+                await this.exponentialSearchAnimation();
+                break;
+            case 'interpolation_search':
+                await this.interpolationSearchAnimation();
                 break;
             default:
                 console.log(`${this.currentAlgorithm} animation not fully implemented yet`);
@@ -317,6 +372,7 @@ class AlgorithmVisualizer {
                     this.swaps++;
                     this.array = [...arr];
                     this.renderArray();
+                    this.updateStatus();
                     
                     await this.delay(this.animationSpeed / 2);
                 }
@@ -364,6 +420,7 @@ class AlgorithmVisualizer {
                 this.swaps++;
                 this.array = [...arr];
                 this.renderArray();
+                this.updateStatus();
                 
                 await this.delay(this.animationSpeed / 2);
             }
@@ -403,7 +460,10 @@ class AlgorithmVisualizer {
             }
             
             arr[j + 1] = key;
-            if (j + 1 !== i) this.swaps++;
+            if (j + 1 !== i) {
+                this.swaps++;
+                this.updateStatus();
+            }
             this.array = [...arr];
             this.renderArray();
             
@@ -456,6 +516,7 @@ class AlgorithmVisualizer {
         }
         
         while (i < leftArr.length) {
+            if (!this.isPlaying) return;
             arr[k] = leftArr[i];
             this.array = [...arr];
             this.renderArray();
@@ -464,6 +525,7 @@ class AlgorithmVisualizer {
         }
         
         while (j < rightArr.length) {
+            if (!this.isPlaying) return;
             arr[k] = rightArr[j];
             this.array = [...arr];
             this.renderArray();
@@ -505,6 +567,8 @@ class AlgorithmVisualizer {
                 this.swaps++;
                 this.array = [...arr];
                 this.renderArray();
+                
+                await this.delay(this.animationSpeed / 2);
             }
             
             this.clearElementHighlight(j);
@@ -512,11 +576,164 @@ class AlgorithmVisualizer {
         
         [arr[i + 1], arr[high]] = [arr[high], arr[i + 1]];
         this.swaps++;
+        this.updateStatus();
         this.array = [...arr];
         this.renderArray();
         
         this.clearHighlights();
         return i + 1;
+    }
+
+    async heapSortAnimation(arr) {
+        const n = arr.length;
+        for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+            await this.heapifyAnimation(arr, n, i);
+        }
+        for (let i = n - 1; i > 0; i--) {
+            if (!this.isPlaying) return;
+            [arr[0], arr[i]] = [arr[i], arr[0]];
+            this.swaps++;
+            this.updateStatus();
+            this.array = [...arr];
+            this.renderArray();
+            this.highlightElements([i], 'sorted');
+            await this.delay(this.animationSpeed);
+            await this.heapifyAnimation(arr, i, 0);
+        }
+        this.highlightElements([0], 'sorted');
+    }
+
+    async heapifyAnimation(arr, n, i) {
+        if (!this.isPlaying) return;
+        let largest = i;
+        const left = 2 * i + 1;
+        const right = 2 * i + 2;
+        this.highlightElements([i], 'current');
+        if (left < n) this.highlightElements([left], 'comparing');
+        if (right < n) this.highlightElements([right], 'comparing');
+        this.comparisons++;
+        this.updateStatus();
+        await this.delay(this.animationSpeed);
+        if (left < n && arr[left] > arr[largest]) largest = left;
+        if (right < n && arr[right] > arr[largest]) largest = right;
+        if (largest !== i) {
+            [arr[i], arr[largest]] = [arr[largest], arr[i]];
+            this.swaps++;
+            this.updateStatus();
+            this.array = [...arr];
+            this.renderArray();
+            await this.delay(this.animationSpeed);
+            await this.heapifyAnimation(arr, n, largest);
+        }
+        this.clearHighlights();
+    }
+
+    async countingSortAnimation(arr) {
+        const n = arr.length;
+        const max = Math.max(...arr);
+        const min = Math.min(...arr);
+        const range = max - min + 1;
+        const count = new Array(range).fill(0);
+        const output = new Array(n);
+        for (let i = 0; i < n; i++) {
+            if (!this.isPlaying) return;
+            this.highlightElements([i], 'current');
+            count[arr[i] - min]++;
+            this.comparisons++;
+            this.updateStatus();
+            await this.delay(this.animationSpeed);
+            this.clearHighlights();
+        }
+        for (let i = 1; i < range; i++) count[i] += count[i - 1];
+        for (let i = n - 1; i >= 0; i--) {
+            if (!this.isPlaying) return;
+            this.highlightElements([i], 'current');
+            output[count[arr[i] - min] - 1] = arr[i];
+            count[arr[i] - min]--;
+            await this.delay(this.animationSpeed);
+            this.clearHighlights();
+        }
+        for (let i = 0; i < n; i++) {
+            if (!this.isPlaying) return;
+            arr[i] = output[i];
+            this.array = [...arr];
+            this.renderArray();
+            this.highlightElements([i], 'sorted');
+            await this.delay(this.animationSpeed);
+        }
+    }
+
+    async radixSortAnimation(arr) {
+        const max = Math.max(...arr);
+        for (let exp = 1; Math.floor(max / exp) > 0; exp *= 10) {
+            if (!this.isPlaying) return;
+            await this.countSortForRadixAnimation(arr, exp);
+        }
+        for (let i = 0; i < arr.length; i++) this.highlightElements([i], 'sorted');
+    }
+
+    async countSortForRadixAnimation(arr, exp) {
+        const n = arr.length;
+        const output = new Array(n);
+        const count = new Array(10).fill(0);
+        for (let i = 0; i < n; i++) {
+            if (!this.isPlaying) return;
+            this.highlightElements([i], 'current');
+            count[Math.floor(arr[i] / exp) % 10]++;
+            await this.delay(this.animationSpeed);
+            this.clearHighlights();
+        }
+        for (let i = 1; i < 10; i++) count[i] += count[i - 1];
+        for (let i = n - 1; i >= 0; i--) {
+            if (!this.isPlaying) return;
+            this.highlightElements([i], 'current');
+            output[count[Math.floor(arr[i] / exp) % 10] - 1] = arr[i];
+            count[Math.floor(arr[i] / exp) % 10]--;
+            await this.delay(this.animationSpeed);
+            this.clearHighlights();
+        }
+        for (let i = 0; i < n; i++) {
+            if (!this.isPlaying) return;
+            arr[i] = output[i];
+            this.array = [...arr];
+            this.renderArray();
+            this.highlightElements([i], 'current');
+            await this.delay(this.animationSpeed / 2);
+            this.clearHighlights();
+        }
+    }
+
+    async bucketSortAnimation(arr) {
+        const n = arr.length;
+        if (n === 0) return;
+        const max = Math.max(...arr);
+        const min = Math.min(...arr);
+        const bucketCount = Math.floor(Math.sqrt(n));
+        const buckets = Array.from({ length: bucketCount }, () => []);
+        for (let i = 0; i < n; i++) {
+            if (!this.isPlaying) return;
+            this.highlightElements([i], 'current');
+            let bucketIndex = Math.floor(((arr[i] - min) / (max - min + 1)) * bucketCount);
+            buckets[bucketIndex].push(arr[i]);
+            await this.delay(this.animationSpeed);
+            this.clearHighlights();
+        }
+        let k = 0;
+        for (let i = 0; i < bucketCount; i++) {
+            if (!this.isPlaying) return;
+            buckets[i].sort((a, b) => a - b);
+            for (let j = 0; j < buckets[i].length; j++) {
+                if (!this.isPlaying) return;
+                arr[k] = buckets[i][j];
+                this.array = [...arr];
+                this.renderArray();
+                this.highlightElements([k], 'current');
+                await this.delay(this.animationSpeed);
+                this.clearHighlights();
+                k++;
+            }
+        }
+        for (let i = 0; i < n; i++) this.highlightElements([i], 'sorted');
     }
 
     async linearSearchAnimation() {
@@ -538,11 +755,12 @@ class AlgorithmVisualizer {
         }
         
         // Element not found
-        alert('Element not found in the array');
+        this.setStatusMsg('Element not found in the array');
     }
 
     async binarySearchAnimation() {
         // First, ensure array is sorted for binary search
+        this.setStatusMsg('Array sorted for Binary Search');
         const sortedArray = [...this.array].sort((a, b) => a - b);
         this.array = sortedArray;
         this.renderArray();
@@ -579,11 +797,145 @@ class AlgorithmVisualizer {
         }
         
         // Element not found
-        alert('Element not found in the array');
+        this.setStatusMsg('Element not found in the array');
+    }
+
+    async jumpSearchAnimation() {
+        this.setStatusMsg('Array sorted for Jump Search');
+        const sortedArray = [...this.array].sort((a, b) => a - b);
+        this.array = sortedArray;
+        this.renderArray();
+        await this.delay(this.animationSpeed);
+
+        const n = this.array.length;
+        let step = Math.floor(Math.sqrt(n));
+        let prev = 0;
+
+        while (this.array[Math.min(step, n) - 1] < this.searchTarget) {
+            if (!this.isPlaying) return;
+            this.highlightElements([Math.min(step, n) - 1], 'comparing');
+            this.comparisons++;
+            this.updateStatus();
+            await this.delay(this.animationSpeed);
+            
+            prev = step;
+            step += Math.floor(Math.sqrt(n));
+            if (prev >= n) {
+                this.setStatusMsg('Element not found in the array');
+                return;
+            }
+        }
+
+        while (this.array[prev] < this.searchTarget) {
+            if (!this.isPlaying) return;
+            this.highlightElements([prev], 'comparing');
+            this.comparisons++;
+            this.updateStatus();
+            await this.delay(this.animationSpeed);
+            
+            prev++;
+            if (prev === Math.min(step, n)) {
+                this.setStatusMsg('Element not found in the array');
+                return;
+            }
+        }
+
+        if (this.array[prev] === this.searchTarget) {
+            this.highlightElements([prev], 'found');
+            return;
+        }
+        this.setStatusMsg('Element not found in the array');
+    }
+
+    async exponentialSearchAnimation() {
+        this.setStatusMsg('Array sorted for Exponential Search');
+        const sortedArray = [...this.array].sort((a, b) => a - b);
+        this.array = sortedArray;
+        this.renderArray();
+        await this.delay(this.animationSpeed);
+
+        if (this.array[0] === this.searchTarget) {
+            this.highlightElements([0], 'found');
+            return;
+        }
+
+        let i = 1;
+        while (i < this.array.length && this.array[i] <= this.searchTarget) {
+            if (!this.isPlaying) return;
+            this.highlightElements([i], 'comparing');
+            this.comparisons++;
+            this.updateStatus();
+            await this.delay(this.animationSpeed);
+            i = i * 2;
+        }
+
+        await this.binarySearchRangeAnimation(i / 2, Math.min(i, this.array.length - 1));
+    }
+
+    async binarySearchRangeAnimation(left, right) {
+        while (left <= right) {
+            if (!this.isPlaying) return;
+            const mid = Math.floor((left + right) / 2);
+            this.highlightElements([left, right], 'comparing');
+            this.highlightElements([mid], 'current');
+            this.comparisons++;
+            this.updateStatus();
+            await this.delay(this.animationSpeed);
+
+            if (this.array[mid] === this.searchTarget) {
+                this.highlightElements([mid], 'found');
+                return;
+            }
+            this.clearHighlights();
+            if (this.array[mid] < this.searchTarget) left = mid + 1;
+            else right = mid - 1;
+        }
+        this.setStatusMsg('Element not found in the array');
+    }
+
+    async interpolationSearchAnimation() {
+        this.setStatusMsg('Array sorted for Interpolation Search');
+        const sortedArray = [...this.array].sort((a, b) => a - b);
+        this.array = sortedArray;
+        this.renderArray();
+        await this.delay(this.animationSpeed);
+
+        let left = 0, right = this.array.length - 1;
+
+        while (left <= right && this.searchTarget >= this.array[left] && this.searchTarget <= this.array[right]) {
+            if (!this.isPlaying) return;
+            if (left === right) {
+                if (this.array[left] === this.searchTarget) {
+                    this.highlightElements([left], 'found');
+                    return;
+                }
+                break;
+            }
+
+            let pos = left + Math.floor(((this.searchTarget - this.array[left]) * (right - left)) / (this.array[right] - this.array[left]));
+            
+            this.highlightElements([left, right], 'comparing');
+            this.highlightElements([pos], 'current');
+            this.comparisons++;
+            this.updateStatus();
+            await this.delay(this.animationSpeed);
+
+            if (this.array[pos] === this.searchTarget) {
+                this.highlightElements([pos], 'found');
+                return;
+            }
+            this.clearHighlights();
+            if (this.array[pos] < this.searchTarget) left = pos + 1;
+            else right = pos - 1;
+        }
+        this.setStatusMsg('Element not found in the array');
     }
 
     highlightElements(indices, className) {
         indices.forEach(index => {
+            if (className === 'sorted') {
+                this.sortedIndices.add(index);
+            }
             const element = this.arrayVisualization.children[index];
             if (element) {
                 element.classList.add(className);
@@ -607,14 +959,33 @@ class AlgorithmVisualizer {
 
     delay(ms) {
         return new Promise(resolve => {
-            this.animationId = setTimeout(resolve, ms);
+            if (this.isStepMode) {
+                this.stepResolver = resolve;
+            } else {
+                this.animationId = setTimeout(resolve, ms);
+            }
         });
     }
 
-    updateStatus() {
+    updateStatus(incrementStep = true) {
+        if (incrementStep) this.currentStep++;
         if (this.currentStepSpan) this.currentStepSpan.textContent = `Step: ${this.currentStep}`;
         if (this.comparisonsSpan) this.comparisonsSpan.textContent = `Comparisons: ${this.comparisons}`;
         if (this.swapsSpan) this.swapsSpan.textContent = `Swaps: ${this.swaps}`;
+    }
+
+    setStatusMsg(msg, duration = 3000) {
+        if (!this.statusMsgSpan || !this.statusMsgContainer) return;
+        this.statusMsgSpan.textContent = msg;
+        this.statusMsgContainer.classList.add('active');
+        
+        if (duration) {
+            setTimeout(() => {
+                if (this.statusMsgSpan.textContent === msg) {
+                    this.statusMsgContainer.classList.remove('active');
+                }
+            }, duration);
+        }
     }
 
     updateDisplay() {
