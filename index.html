@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Algorithm Visualizer - Sorting & Searching</title>
+    <title>Algorithm Visualizer</title>
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
@@ -67,10 +67,10 @@
                             <input type="range" class="array-size-slider" min="5" max="50" value="20">
                             <span class="array-size-value">20</span>
                         </div>
-                        <button class="btn btn--outline generate-array-btn">Generate New Array</button>
+                        <button class="btn btn--secondary generate-array-btn">Generate New Array</button>
                         <div class="search-input-group" style="display: none;">
                             <label class="form-label">Search Value:</label>
-                            <input type="number" class="form-control search-value-input" placeholder="Enter value">
+                            <input type="number" class="form-control search-value-input" placeholder="Search for...">
                         </div>
                     </div>
                 </div>
@@ -131,6 +131,10 @@
                 <span class="current-step">Step: 0</span>
                 <span class="comparisons">Comparisons: 0</span>
                 <span class="swaps">Swaps: 0</span>
+                <div class="status-msg-container">
+                    <span class="status-msg"></span>
+                    <button class="status-msg-close">&times;</button>
+                </div>
             </div>
         </div>
     </div>
